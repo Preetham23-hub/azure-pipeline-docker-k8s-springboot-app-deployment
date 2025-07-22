@@ -1,0 +1,105 @@
+parameters:
+  - name: jdkVersion
+    displayName: 'Version of Java to be used'
+    type: string
+    default: '1.17'
+  - name: projectDir
+    displayName: 'Path to the root of the Java project directory'
+    type: string
+    default: '.'
+  - name: pomLocation
+    displayName: 'Path to the location of pom.xml in relation to project directory'
+    type: string
+    default: 'pom.xml'
+  - name: buildOptions
+    displayName: 'Maven build options'
+    type: string
+    default: '-Dmaven.test.skip=false'
+  - name: publishArtifact
+    displayName: 'Determines if built executable should be published as an artifact'
+    type: boolean
+    default: true
+  - name: artifactName
+    displayName: 'Name of artifact that contains built executable'
+    type: string
+    default: 'exec'
+  - name: sonarCloudServer
+    displayName: "SonarCloud Service Endpoint"
+    type: string
+    default: "sonar end point name from azure service connections should be added here"  
+  - name: sonarCloudOrg
+    displayName: "SonarCloud Organization"
+    type: string
+    default: "Organization if any should be added here"
+  - name: sonarCloudProjectKey
+    displayName: "SonarCloud project's unique key. Look for value matching pipeline/repo in Confluence"
+    type: string
+    default: "project key should be added here"
+  - name: skipSonarCloud
+    displayName: "If true, skip sonarcloud - only for testing"
+    type: boolean
+    default: false
+  - name: goals
+    displayName: 'set the maven goal'
+    type: string
+    default: 'package spring-boot:repackage'
+    # override the suitable goal
+
+stages:
+  - stage: BuildTest
+    displayName: "Build, Test"
+    variables:
+      MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+      MAVEN_OPTS: '-Xmx1024m -Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+    jobs:
+      - job: MavenBuild
+        displayName: Build Maven
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+          - task: Cache@2
+            inputs:
+              key: 'maven | "$(Agent.OS)" | **/pom.xml'
+              restoreKeys: |
+                maven | "$(Agent.OS)"
+                maven
+              path: $(MAVEN_CACHE_FOLDER)
+            displayName: Cache Maven local repo
+          - template: steps-java-build.yml
+            parameters:
+              goals: ${{ parameters.goals }}
+              jdkVersion: ${{ parameters.jdkVersion }}
+              projectDir: ${{ parameters.projectDir }}
+              buildOptions: ${{ parameters.buildOptions }}
+              pomLocation: ${{ parameters.pomLocation }}
+              publishArtifact: ${{ parameters.publishArtifact }}
+              artifactName: ${{ parameters.artifactName }}
+              mavenOptions: $(MAVEN_OPTS)
+
+      - job: AnalyzeJava
+        displayName: "SonarCloud Analyze For Java"
+        dependsOn: MavenBuild
+        condition: and(succeeded(), eq('${{ parameters.skipSonarCloud }}', false))
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+          - task: Cache@2
+            inputs:
+              key: 'maven | "$(Agent.OS)" | **/pom.xml'
+              restoreKeys: |
+                maven | "$(Agent.OS)"
+                maven
+              path: $(MAVEN_CACHE_FOLDER)
+            displayName: Cache Maven local repo
+          - template: steps-sonarcloud.yml
+            parameters:
+              sonarCloudServer: ${{ parameters.sonarCloudServer }}
+              sonarCloudOrg: ${{ parameters.sonarCloudOrg }}
+              sonarCloudProjectKey: ${{ parameters.sonarCloudProjectKey }}
+              projectDir: ${{ parameters.projectDir }}
+              pomLocation: ${{ parameters.pomLocation }}
+              buildOptions: ${{ parameters.buildOptions }}
+              jdkVersion: ${{ parameters.jdkVersion }}
+              mavenOptions: $(MAVEN_OPTS)
