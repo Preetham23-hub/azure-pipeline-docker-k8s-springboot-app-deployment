@@ -1,0 +1,86 @@
+parameters:
+  - name: projectDir
+    displayName: 'Path to the root of the Java project directory'
+    type: string
+    default: '.'
+  - name: publishArtifact
+    displayName: "Determines if built executable should be published as an artifact"
+    type: boolean
+    default: false
+  - name: artifactName
+    displayName: "Name of artifact that contains built executable"
+    type: string
+    default: 'exec'
+  - name: containerRegistry
+    displayName: "Name of the container registry where the docker image will be published"
+    type: string
+    default: "EDT Azure Container Registry"
+  - name: repository
+    displayName: "Name of the repository to publish the docker image to"
+    type: string
+    default: "repository name"
+  - name: tag
+    displayName: "the name the docker image should be tagged with"
+    type: string
+    default: "test"
+  - name: tagLatest
+    displayName: "true if the docker image should be tagged as latest, false otherwise"
+    type: boolean
+    default: false
+
+stages:
+  - stage: Docker
+    displayName: "Docker"
+    jobs:
+      - job: DockerJob
+        displayName: "Docker Job"
+        pool:
+          vmImage: "ubuntu-latest"
+        variables:
+          # Used by the updateVersion.sh script to set the docker image version in deploy.yml.
+          SERVICE_VERSION: $(Build.BuildNumber)
+        steps:
+          - download: current
+            displayName: "Download executable as artifact"
+            artifact: ${{ parameters.artifactName }}
+
+          - task: CopyFiles@2
+            displayName: "Copy executable to folder with Dockerfile"
+            inputs:
+              sourceFolder: "$(Agent.BuildDirectory)/${{ parameters.artifactName }}"
+              CleanTargetFolder: false
+              TargetFolder: "$(Build.SourcesDirectory)/${{ parameters.projectDir }}/target"
+
+          - task: Docker@2
+            displayName: "Build and push docker image"
+            inputs:
+              containerRegistry: ${{ parameters.containerRegistry }}
+              repository: ${{ parameters.repository }}
+              Dockerfile: "$(System.DefaultWorkingDirectory)/${{ parameters.projectDir }}/Dockerfile"
+              buildContext: "$(System.DefaultWorkingDirectory)/${{ parameters.projectDir }}"
+              tags: ${{ parameters.tag }}
+
+          - ${{ if eq(parameters.tagLatest, true) }}:
+            - task: Docker@2
+              displayName: "Tag docker image as latest"
+              inputs:
+                containerRegistry: ${{ parameters.containerRegistry }}
+                repository: ${{ parameters.repository }}
+                Dockerfile: "$(System.DefaultWorkingDirectory)/${{ parameters.projectDir }}/Dockerfile"
+                buildContext: "$(System.DefaultWorkingDirectory)/${{ parameters.projectDir }}"
+                tags: |
+                  latest
+
+          - task: Bash@3
+            displayName: "Update k8s version"
+            inputs:
+              filePath: "$(System.DefaultWorkingDirectory)/${{ parameters.projectDir }}/k8s/updateVersion.sh"
+              workingDirectory: "$(System.DefaultWorkingDirectory)/${{ parameters.projectDir }}/k8s"
+              failOnStderr: true
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish k8s directory as artifact"
+            inputs:
+              PathtoPublish: "$(System.DefaultWorkingDirectory)/${{ parameters.projectDir }}/k8s"
+              ArtifactName: "k8s"
+              publishLocation: "Container"
