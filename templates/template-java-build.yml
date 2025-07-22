@@ -26,7 +26,7 @@ parameters:
   - name: sonarCloudServer
     displayName: "SonarCloud Service Endpoint"
     type: string
-    default: "sonar end point name from azure service connections should be added here"  
+    default: "sonar end point name from azure service connections should be added here"
   - name: sonarCloudOrg
     displayName: "SonarCloud Organization"
     type: string
@@ -42,8 +42,7 @@ parameters:
   - name: goals
     displayName: 'set the maven goal'
     type: string
-    default: 'package spring-boot:repackage'
-    # override the suitable goal
+    default: 'package spring-boot:repackage'  # override the suitable goal
 
 stages:
   - stage: BuildTest
@@ -103,3 +102,13 @@ stages:
               buildOptions: ${{ parameters.buildOptions }}
               jdkVersion: ${{ parameters.jdkVersion }}
               mavenOptions: $(MAVEN_OPTS)
+
+      - job: BlackDuckScan
+        displayName: "Black Duck OSS Scan"
+        dependsOn: AnalyzeJava   # Changed to depend on AnalyzeJava job
+        condition: succeeded()  # ensure it only runs if AnalyzeJava succeeded
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+          - template: steps-synopsys-detect.yml

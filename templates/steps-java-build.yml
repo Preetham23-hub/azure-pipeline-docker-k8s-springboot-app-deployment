@@ -1,0 +1,61 @@
+# steps-java-build.yml
+# An Azure Pipeline Template containing the steps for a Java build
+
+parameters:
+  - name: jdkVersion
+    displayName: 'Version of Java to be used'
+    type: string
+    default: '1.17'
+  - name: projectDir
+    displayName: "Path to the root of the Java project directory"
+    type: string
+    default: "."
+  - name: pomLocation
+    displayName: "Path to the location of pom.xml in relation to project directory"
+    type: string
+    default: 'pom.xml'
+  - name: buildOptions
+    displayName: 'Maven build options'
+    type: string
+    default: '-Dmaven.test.skip=false'
+  - name: publishArtifact
+    displayName: "Determines if built executable should be published as an artifact"
+    type: boolean
+    default: true
+  - name: artifactName
+    displayName: "Name of artifact that contains built executable"
+    type: string
+    default: 'exec'
+  - name: mavenOptions
+    displayName: "Used to send command-line arguments to start the JVM. The -Xmx flag specifies the maximum memory available to the JVM."
+    type: string
+    default: '-Xmx1024m'
+  - name: goals
+    displayName: 'Set the maven goal'
+    type: string
+    default: 'package spring-boot:repackage'
+
+steps:
+- task: Maven@4
+  inputs:
+    mavenPomFile: '${{ parameters.projectDir }}/${{ parameters.pomLocation }}'
+    goals: '${{ parameters.goals }}'
+    options: '${{ parameters.buildOptions }}'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    codeCoverageToolOption: 'JaCoCo'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '${{ parameters.jdkVersion }}'
+    mavenVersionOption: 'Default'
+    mavenOptions: '${{ parameters.mavenOptions }}'
+    mavenAuthenticateFeed: false
+    effectivePomSkip: false
+    sonarQubeRunAnalysis: false
+
+- ${{ if eq(parameters.publishArtifact, true) }}:
+  - task: PublishBuildArtifacts@1
+    inputs:
+      PathtoPublish: '$(Build.SourcesDirectory)/${{ parameters.projectDir }}/target'
+      ArtifactName: '${{ parameters.artifactName }}'
+      publishLocation: 'Container'
+    displayName: 'Publish ${{ parameters.artifactName }} as artifact'
