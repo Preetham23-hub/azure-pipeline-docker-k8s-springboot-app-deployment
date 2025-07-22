@@ -11,7 +11,7 @@ function on_err
 
 trap on_err ERR
 
-# Get the deploy.yml from edt-ui and provide the access to modify it
+# Get the deploy.yml from k8's folder and provide the access to modify it
 DEPLOYMENT_TEMPLATE=deploy.yml
 chmod a+rwx "$DEPLOYMENT_TEMPLATE"
 

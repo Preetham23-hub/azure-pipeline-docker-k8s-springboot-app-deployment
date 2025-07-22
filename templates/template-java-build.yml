@@ -105,7 +105,7 @@ stages:
 
       - job: BlackDuckScan
         displayName: "Black Duck OSS Scan"
-        dependsOn: AnalyzeJava   # Changed to depend on AnalyzeJava job
+        dependsOn: AnalyzeJava   # depend on AnalyzeJava job
         condition: succeeded()  # ensure it only runs if AnalyzeJava succeeded
         pool:
           vmImage: ubuntu-latest
