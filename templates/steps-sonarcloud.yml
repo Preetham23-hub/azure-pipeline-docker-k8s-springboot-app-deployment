@@ -1,0 +1,87 @@
+# steps-sonarcloud.yml
+# An Azure Pipeline Template containing the steps for sonar code scanning and report upload to sonar server
+
+parameters:
+  - name: jdkVersion
+    displayName: 'Version of Java to be used'
+    type: string
+    default: '1.17'
+  - name: projectDir
+    displayName: "Path to the root of the Java project directory"
+    type: string
+    default: "."
+  - name: pomLocation
+    displayName: "Path to the location of pom.xml in relation to project directory"
+    type: string
+    default: 'pom.xml'
+  - name: buildOptions
+    displayName: 'Maven build options'
+    type: string
+    default: '-Dmaven.test.skip=false'
+  - name: sonarCloudServer
+    displayName: "SonarCloud Service Endpoint"
+    type: string
+    default: "sonar end point"
+  - name: sonarCloudOrg
+    displayName: "SonarCloud Organization"
+    type: string
+    default: "organization name"
+  - name: sonarCloudProjectKey
+    displayName: "SonarCloud project's unique key. Look for value matching pipeline/repo in Confluence"
+    type: string
+    default: "project key"
+  - name: mavenOptions
+    displayName: "Used to send command-line arguments to start the JVM. The -Xmx flag specifies the maximum memory available to the JVM."
+    type: string
+    default: '-Xmx1024m'
+
+steps:
+  - task: SonarCloudPrepare@1
+    inputs:
+      SonarCloud: ${{ parameters.sonarCloudServer }}
+      organization: ${{ parameters.sonarCloudOrg }}
+      scannerMode: 'Other'
+      extraProperties: |
+        # Additional properties that will be passed to the scanner,
+        # Put one key=value per line, example:
+        # sonar.exclusions=**/*.bin
+        sonar.projectKey=${{ parameters.sonarCloudProjectKey }}
+
+  - task: Maven@4
+    displayName: Maven - Build/Run Tests
+    inputs:
+      mavenPOMFile: ${{ parameters.projectDir }}/${{ parameters.pomLocation }}
+      goals: 'clean verify'
+      options: '${{ parameters.buildOptions }}'
+      publishJUnitResults: false
+      codeCoverageToolOption: 'JaCoCo'
+      javaHomeOption: 'JDKVersion'
+      jdkVersionOption: ${{ parameters.jdkVersion }}
+      mavenVersionOption: 'Default'
+      mavenOptions: ${{ parameters.mavenOptions }}
+      mavenAuthenticateFeed: false
+      effectivePomSkip: false
+      isJacocoCoverageReportXML: true
+      sonarQubeRunAnalysis: true
+      sqMavenPluginVersionChoice: latest
+
+  - task: SonarCloudPublish@1
+    displayName: 'SonarCloud Publish Quality Gate Result'
+    inputs:
+      pollingTimeoutSec: '300'
+
+  - task: DeleteFiles@1
+    displayName: Delete files from Agent Build Directory
+    condition: always()
+    inputs:
+      SourceFolder: /home/sqadmin/myagent/_work
+      Contents: >-
+        1*
+        2*
+        3*
+        4*
+        5*
+        6*
+        7*
+        8*
+        9*
