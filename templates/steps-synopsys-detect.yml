@@ -1,0 +1,20 @@
+# steps-synopsys-detect.yml
+steps:
+  - task: SynopsysDetectTask@9
+    inputs:
+      BlackDuckService: 'javacicd-oss' # the service connection name should be added here
+      DetectArguments: |
+        --detect.blackduck.signature.scanner.copyright.search=true
+        --detect.blackduck.signature.scanner.license.search=true
+        --detect.blackduck.signature.scanner.snippet.matching=SNIPPET_MATCHING
+        --detect.blackduck.signature.scanner.upload.source.mode=true
+        --detect.blackduck.signature.scanner.individual.file.matching=BINARY
+        --detect.detector.search.continue=true
+        --detect.bdio.file.name="javacicd-1.0.0"
+        --detect.npm.dependency.types.excluded=DEV
+        --detect.project.name="project name in blackduck"
+        --detect.project.version.name="Dev"
+        --detect.source.path="$(Build.SourcesDirectory)"
+        --detect.output.path="tmp/SynopsysDetect/output"
+        --detect.timeout=1000
+      DetectVersion: 'latest'
