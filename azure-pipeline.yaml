@@ -1,0 +1,49 @@
+trigger:
+  - main
+
+variables:
+  - name: major
+    value: 0
+  - name: minor
+    value: 0
+  - name: patch
+    value: $[counter(format('{0}.{1}', variables['major'], variables['minor']), 0)]
+  - name: pkgVersion
+    value: $[format('{0}.{1}.{2}', variables['major'], variables['minor'], variables['patch'])]
+
+name: $(date:yyyyMMdd-HHmmss)
+
+parameters:
+  - name: sonarCloudServer
+    displayName: "SonarCloud Service Endpoint"
+    type: string
+    default: "sonar's service connection's name"
+  - name: sonarCloudOrg
+    displayName: "SonarCloud Organization"
+    type: string
+    default: "project info"
+  - name: sonarCloudProjectKey
+    displayName: "SonarCloud project's unique key. Look for value matching pipeline/repo in Confluence"
+    type: string
+    default: "project_key"
+  - name: skipSonarCloud
+    displayName: "If true, skip sonarcloud - only for testing"
+    type: boolean
+    default: false
+
+stages:
+  - template: templates/template-java-build.yml
+    parameters:
+      buildOptions: -Dmaven.test.skip=false
+      publishArtifact: true
+      artifactName: 'jar name'
+      sonarCloudServer: ${{ parameters.sonarCloudServer }}
+      sonarCloudOrg: ${{ parameters.sonarCloudOrg }}
+      sonarCloudProjectKey: ${{ parameters.sonarCloudProjectKey }}
+      skipSonarCloud: ${{ parameters.skipSonarCloud }}
+  - template: templates/template-java-docker.yml
+    parameters:
+      repository: 'azure-docker-repo-name'
+      tag: $(pkgVersion)
+      tagLatest: true
+      artifactName: 'docker-image-name'
