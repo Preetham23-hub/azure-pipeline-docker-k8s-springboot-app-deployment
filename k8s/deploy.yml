@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
         - name: java-cicd-demo
-          image: edtregistry.azurecr.io/javacicd:<SERVICE_VERSION>
+          image: registry.azurecr.io/javacicd:<SERVICE_VERSION>
           ports:
             - containerPort: 8080
           env:
@@ -60,6 +60,6 @@ spec:
             failureThreshold: 3
             successThreshold: 1
       imagePullSecrets:
-        - name: regcred
+        - name: regcred # create a secret with your azure/registry creds if the registry is private.
       nodeSelector:
         kubernetes.io/os: linux
